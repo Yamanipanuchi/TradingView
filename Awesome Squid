@@ -1,0 +1,191 @@
+//@version=5
+//Awsome Squid Indicator V3
+//All creding goes to LazyBear, Woody, xSilas, Ni6HTH4wK, sco77m4r7in, oh92, MrUnicornLlama, Sgjoe123, furby
+//Indicators combined by BlankSpaceisBlank
+
+indicator('Awsome Squid Indicator', scale=scale.right)
+src = input(close, title='Source')
+//TTM///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// ######################################################################################
+// This script was created because the original TTM Squeeze script
+// did trigger when only one of the Bollinger Bands was 
+// in the Keltner channel. It now gives the option to use it as was
+// or to force it to only give a signal when both BB are in the Keltner channels
+// 
+// Furthermore an alert was added to fire when we are squeezing
+// no matter which option your choose (original or strict)
+// To create an alert, click on the alerts in the right column on your screen
+// then click on the +button to add an alert. 
+// Select from the conditions "CTTV Squeeze" and "Once per bar close"
+// Keep in mind that you set this alert for one instrument and one particular time frame
+// If you would have any questions, contact me : 
+// TradingView : @Nico.Muselle
+// Twitch : @MrUnicornLlama
+// ######################################################################################
+
+//strict = input(true, title="Enabled (original) or Disabled (strict)")
+
+length = input.int(20, minval=1, title='BB Length')
+/// ### ORIGINAL TTM ### ///
+
+bband(length, mult) =>
+    ta.sma(close, length) + mult * ta.stdev(close, length)
+keltner(length, mult) =>
+    ta.ema(close, length) + mult * ta.ema(ta.tr, length)
+
+diff = bband(length, 2) - keltner(length, 1)
+
+
+/// ### BOLLINGER BANDS ### ///
+
+mult = input.float(2.0, minval=0.001, maxval=50, title='StDev')
+basis = ta.sma(src, length)
+dev = mult * ta.stdev(src, length)
+upper = basis + dev
+lower = basis - dev
+
+
+/// ### KELTNER CHANNELS ### ///
+
+useTrueRange = input(true)
+klength = input.int(20, minval=1, title='Keltner Length')
+kmult = input(1.0, title='Multiplier')
+ksrc = input(close, title='Keltner Source')
+
+ma = ta.ema(src, klength)
+range_1 = useTrueRange ? ta.tr : high - low
+rangema = ta.ema(range_1, klength)
+kupper = ma + rangema * kmult
+klower = ma - rangema * kmult
+c = color.blue
+
+
+/// ### CALCULATIONS ### ///
+
+e1 = (ta.highest(high, length) + ta.lowest(low, length)) / 2 + ta.sma(close, length)
+//osc = linreg(close - e1 / 2, length, 0)
+
+TFrame = timeframe.multiplier > 0 and timeframe.multiplier < 5 ? 1500 : timeframe.multiplier >= 5 and timeframe.multiplier < 31 ? 7000 : timeframe.multiplier >= 31 and timeframe.multiplier < 61 ? 5000 : timeframe.multiplier >= 61 and timeframe.multiplier < 121 ? 4000 : timeframe.multiplier >= 121 ? 3000 : na
+//TFrame = 4500
+
+osc = ta.linreg((close - e1 / 2) * (TFrame / close), length, 0)
+
+
+color_1 = color.new(#00ffff, 70)
+color_2 = color.new(#cc00cc, 70)
+color_3 = color.new(#009b9b, 70)
+color_4 = color.new(#ff9bff, 70)
+osc_color = osc[1] < osc[0] ? osc[0] >= 0 ? color_1 : color_2 : osc[0] >= 0 ? color_3 : color_4
+//osc_color = osc[1] < osc[0] ? osc[0] >= 0 ? color(#00ffff, 40) : #cc00cc : osc[0] >= 0 ? #009b9b : #ff9bff
+alert = true and diff < 0 ? true : not true and kupper > upper and klower < lower ? true : false
+alert2 = false and diff < 0 ? true : not false and kupper > upper and klower < lower ? true : false
+color_5 = color.new(color.orange, 1)
+mid_color = alert ? color_5 : na
+color_6 = color.new(color.lime, 1)
+mid_color2 = alert2 ? color_6 : na
+
+/// ### PLOTS ### ///
+
+plot(osc, color=osc_color, style=plot.style_columns, linewidth=2, title='Hist. TTM')
+plot(0, color=mid_color, style=plot.style_circles, linewidth=3, title='Loose TTM Fire')
+plot(0, color=mid_color2, style=plot.style_circles, linewidth=3, title='Strict TTM Fire')
+
+/// ### ALERT ### ///
+
+alertcondition(alert, title='CTTV Squeeze', message='Squeeze alert')
+
+
+
+
+
+
+//Woody CCI///////////////////////////////////////////////////////////////////////////////////////////
+
+cci14Length = input.int(title='CCI 14 Length', defval=14, minval=7, maxval=14)
+
+cciTurbo = ta.cci(src, cci14Length)
+
+color_7 = color.new(color.aqua, 80)
+color_8 = color.new(#1E90FF, 80)
+color_9 = color.new(color.yellow, 80)
+color_10 = color.new(color.aqua, 1)
+color_11 = color.new(#1E90FF, 20)
+color_12 = color.new(color.yellow, 55)
+
+cciTurboIsDown = cciTurbo < -100
+cciTurboIsZero = cciTurbo >= -100 and cciTurbo <= 100
+cciTurboIsUp = cciTurbo > 100
+color_13 = color.new(#1E90FF, 1)
+color_14 = color.new(color.aqua, 1)
+color_15 = color.new(color.yellow, 55)
+color_16 = color.new(color.aqua, 1)
+LineColorTurbo = cciTurboIsUp ? color_13 : cciTurboIsDown ? color_14 : cciTurboIsZero ? color_15 : cciTurbo < 0 ? color_16 : na
+
+plot(cciTurbo, title='CCI 14', color=LineColorTurbo, style=plot.style_line, linewidth=2)
+
+hline(100, title='Hundred Line', color=color.new(#00CED1, 1), linestyle=hline.style_dashed)
+hline(-100, title='Minus Line', color=color.new(#00CED1, 1), linestyle=hline.style_dashed)
+
+
+//GODMODE//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+//study(shorttitle = "SQZMOM_LB", title="Squeeze Momentum Indicator [LazyBear]", overlay=false)
+fastn1 = input(17, 'Channel Length')
+fastn2 = input(6, 'Average Length')
+fastn3 = input(4, 'Short Length')
+enableSecond = input(defval=true, title='Enable Second Godmode Indicator')
+slown1 = input(9, 'Slow Channel Length')
+slown2 = input(26, 'Slow Average Length')
+slown3 = input(13, 'Slow Short Length')
+multi = input(defval=false, title='Multi-exchange?')
+src0 = hlc3
+
+
+tci_1(src, n1, n2) =>
+    ta.ema((src - ta.ema(src, n1)) / (0.025 * ta.ema(math.abs(src - ta.ema(src, n1)), n1)), n2) + 50
+mf_1(src, n3) =>
+    100.0 - 100.0 / (1.0 + math.sum(volume * (ta.change(src) <= 0 ? 0 : src), n3) / math.sum(volume * (ta.change(src) >= 0 ? 0 : src), n3))
+willy(src, n2) =>
+    60 * (src - ta.highest(src, n2)) / (ta.highest(src, n2) - ta.lowest(src, n2)) + 80
+csi(src, n1, n2, n3) =>
+    math.avg(ta.rsi(src, n3), ta.tsi(src0, n1, n2) * 50 + 50)
+
+godmode(src, n1, n2, n3) =>
+    math.avg(tci_1(src, n1, n2), csi(src, n1, n2, n3), mf_1(src, n3), willy(src, n2))
+tradition(src, n1, n2, n3) =>
+    math.avg(tci_1(src, n1, n2), mf_1(src, n3), ta.rsi(src, n3))
+extended(wt2) =>
+    wt2 < 20 ? wt2 + 5 : wt2 > 80 ? wt2 - 5 : na
+
+
+fastwt1 = godmode(src0, fastn1, fastn2, fastn3)
+fastwt2 = ta.sma(fastwt1, 6)
+slowwt1 = godmode(src0, slown1, slown2, slown3)
+slowwt2 = ta.sma(slowwt1, 6)
+
+fastextended = fastwt2 < 25 ? fastwt2 - 150 : fastwt2 > 75 ? fastwt2 + 50 : na
+extended__1 = extended(slowwt2)
+extended__2 = extended(slowwt2)
+extended__3 = extended(slowwt2)
+slowextended = extended(slowwt2) < 25 ? extended__1 - 160 : extended__2 > 75 ? extended__3 + 60 : na
+
+
+plot(fastextended, title='Godemode Caution!', color=color.new(color.yellow, 0), style=plot.style_circles, linewidth=2)
+plot(slowextended, title='Godemode Extreme Caution!', color=color.new(color.red, 1), style=plot.style_circles, linewidth=3, transp=0)
+
+
+
+////////////////////////////////RSI///////////////////////////////////
+
+
+len = input.int(14, minval=1, title='RSI Length')
+rsi = ta.rsi(src, len)
+
+rsiloc = rsi < 20 ? 2 * (rsi - 120) : rsi > 80 ? 2 * (rsi + 20) : na
+
+
+plot(rsiloc, title='RSI', style=plot.style_cross, linewidth=3, color=color.new(color.red, 1))
+
